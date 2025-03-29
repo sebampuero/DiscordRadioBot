@@ -1,0 +1,15 @@
+services:
+  discordbot:
+    image: radiobot:latest
+    container_name: radiobot
+    environment:
+      - LOGGING_FORMAT=console
+      - LOGGING_LEVEL=info
+    env_file:
+      - .env
+    networks:
+      - radiobotnetwork
+    restart: unless-stopped
+
+networks:
+  radiobotnetwork:

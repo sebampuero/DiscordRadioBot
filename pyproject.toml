@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "discord-bot-project"
+version = "0.0.1"
+description = "A Discord bot that plays radio from all over the world"
+authors = ["Sebastian <sebastian@sebampuerom.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+discord-py = {extras = ["voice"], version = "^2.5.2"}
+structlog = "^25.2.0"
+python-dotenv = "^1.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+line_length = 88
