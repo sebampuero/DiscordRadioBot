@@ -88,7 +88,7 @@ class RadioBot(commands.Cog):
 
     @commands.command(name="radio-ciudad")
     @commands.cooldown(1, 3, commands.BucketType.user)
-    async def get_radios_by_city(self, ctx: commands.Context, query: str):
+    async def get_radios_by_city(self, ctx: commands.Context, query: str): #TODO: add check if user is in a voice channel
         '''
         !radio-ciudad [ciudad] => muestra todas las radios en esta ciudad
         '''
