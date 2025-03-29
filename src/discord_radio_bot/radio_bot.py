@@ -17,10 +17,10 @@ class SelectButton(discord.ui.Button):
         member = guild.get_member_named(interaction.user.name)
         logger.info(f"Going to play: {self.radio['name']}")
         if member.voice:
-            await interaction.response.edit_message(content=f"Reproduciendo: {self.radio['name']}", view=None)
+            await interaction.response.edit_message(content=f"Playing: {self.radio['name']}", view=None)
             await self.cog.play_radio(self.radio['url_resolved'], member.voice.channel)
         else:
-            await interaction.response.edit_message(content="No estas en canal de voz, animal de mierda", view=None)
+            await interaction.response.edit_message(content="You're not in a voice channel, bitch", view=None)
 
 class NextPrevButton(discord.ui.Button):
     def __init__(self, label: str, *, calling_cog: commands.Cog, query: str, is_next_btn: bool):
@@ -48,7 +48,7 @@ class NextPrevButton(discord.ui.Button):
             select_buttons[i].calling_cog = self.cog
             select_buttons[i].label = (i+1) + self.cog.RADIOS_PER_PAGE * self.view.current_page
             options_txt += f"{(i+1) + self.cog.RADIOS_PER_PAGE * self.view.current_page}: {radios[i]['name']}\n"
-        await interaction.response.edit_message(content=f"Radios para {self.query}:\n{options_txt}", view=self.view)
+        await interaction.response.edit_message(content=f"Radios for {self.query}:\n{options_txt}", view=self.view)
 
 class Buttons(discord.ui.View):
     def __init__(self, *, timeout=180):
@@ -86,44 +86,48 @@ class RadioBot(commands.Cog):
             if len(left_members) == 0:
                 self.disconnect()
 
-    @commands.command(name="radio-ciudad")
+    @commands.command(name="radio-city")
     @commands.cooldown(1, 3, commands.BucketType.user)
-    async def get_radios_by_city(self, ctx: commands.Context, query: str): #TODO: add check if user is in a voice channel
+    async def get_radios_by_city(self, ctx: commands.Context, query: str):
         '''
-        !radio-ciudad [ciudad] => muestra todas las radios en esta ciudad
+        !radio-city [city] => shows all radios in this city
         '''
         view = Buttons()
+        message = await ctx.send("Fetching radios...")
         try:
             radios = await fetch_radios_by_city(0,self.RADIOS_PER_PAGE,query)
         except asyncio.TimeoutError as e:   
             logger.error(f"Timeout error: {e} when fetching radios by city {query}")
-            await ctx.send(f"No pude buscar radios de {query}, sorry, intenta despues, ctm")
+            await message.edit("Having network issues, try again later gogigagagagigo")
             return
         options_txt = ""
         for i in range(0,len(radios)):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']}\n"
-        view.add_item(NextPrevButton("Previo", calling_cog=self, query=query, is_next_btn=False))
-        view.add_item(NextPrevButton("Siguiente", calling_cog=self, query=query, is_next_btn=True))
+        view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False))
+        view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True))
         if len(radios) > 0:
-            await ctx.send(f"Radios para {query}:\n{options_txt}", view=view)
+            await message.edit(f"Radios for {query}:\n{options_txt}", view=view)
         else:
-            await ctx.send(f"No hay radios para {query}")
+            await message.edit(f"No radios for {query}")
 
     @commands.command(name="radio")
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def get_radio_by_name(self, ctx: commands.Context, *query: str):
         '''
-        !radio [nombre] => muestra radios con este nombre
+        !radio [name] => shows radios with this name
         '''
         view = Buttons()
         query = ' '.join(query)
+        if not query:
+            return
+        message = await ctx.send("Fetching radios...")
         try:
             radios = await fetch_radio_by_name(query)
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout error: {e} when fetching radios by name {query}")
-            await ctx.send(f"TU internet es una mierda, intenta despues")
+            await message.edit(content="Having network issues, try again later gogigagagagigo")
             return
         options_txt = ""
         for i in range(0, len(radios)):
@@ -131,14 +135,14 @@ class RadioBot(commands.Cog):
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']} - {radios[i]['state']},{radios[i]['country']}\n"
         if len(radios) > 0:
-            await ctx.send(f"Radios con nombres parecidos a '{query}':\n{options_txt}", view=view)
+            await message.edit(f"Radios found: '{query}':\n{options_txt}", view=view)
         else:
-            await ctx.send(f"No hay radios con nombre '{query}'")
+            await message.edit(f"No radios with name '{query}'")
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
         '''
-        !stop => desconecta el bot
+        !stop => disconnects the bot
         '''
         if ctx.author.voice.channel:
             self.disconnect()

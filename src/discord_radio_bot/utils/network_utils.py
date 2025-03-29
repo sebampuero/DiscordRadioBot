@@ -1,37 +1,50 @@
+import random
+import socket
+from logconfig.logging_config import get_logger
 import asyncio
 from functools import partial
-import socket
 
+logger = get_logger("radio_discord_bot")
 
-def get_radiobrowser_base_urls(): # from https://api.radio-browser.info/
+async def get_radiobrowse_base_url(): # from https://api.radio-browser.info/
     """
-    Get all base urls of all currently available radiobrowser servers
+    Get a base url from all available radio browser servers.
 
     Returns: 
     list: a list of strings
 
     """
-    hosts = []
+    loop = asyncio.get_event_loop()
     # get all hosts from DNS
-    ips = socket.getaddrinfo('all.api.radio-browser.info',
-                             80, 0, 0, socket.IPPROTO_TCP)
+    ips = await loop.run_in_executor(None, 
+                                     lambda: socket.getaddrinfo('all.api.radio-browser.info', 80, 0, 0, socket.IPPROTO_TCP))
     reachable_ips = []
+    tasks = []
     for ip_tupple in ips:
         ip = ip_tupple[4][0]
-        try:
-            socket.create_connection((ip, 443), timeout=2).close()
-            reachable_ips.append(ip)
-        except (socket.timeout, socket.error):
-            continue  
+        task = loop.run_in_executor(None, partial(check_connection, ip))
+        tasks.append(task)
+    ips = await asyncio.gather(*tasks)
+    reachable_ips = [ip for ip in ips if ip is not None]
 
+    tasks_dns_lookup = []
     for ip in reachable_ips:
-        # do a reverse lookup on every one of the ips to have a nice name for it
-        host_addr = socket.gethostbyaddr(ip)
-        # add the name to a list if not already in there
-        if host_addr[0] not in hosts:
-            hosts.append(host_addr[0])
+        task = loop.run_in_executor(None, partial(socket.gethostbyaddr, ip))
+        tasks_dns_lookup.append(task)
 
-    # sort list of names
-    hosts.sort()
+    resolved_ips = await asyncio.gather(*tasks_dns_lookup)
+
+    random.shuffle(resolved_ips)
+    if not resolved_ips:
+        resolved_ips.append("all.api.radio-browser.info")
     # add "https://" in front to make it an url
-    return list(map(lambda x: "https://" + x, hosts))
+    return list(map(lambda x: "https://" + x, resolved_ips))
+
+
+def check_connection(ip: str) -> str | None:
+    try:
+        socket.create_connection((ip, 443), timeout=0.5).close()
+        return ip
+    except (socket.timeout, socket.error):
+        logger.info(f"Host {ip} is not reachable")
+        return None
