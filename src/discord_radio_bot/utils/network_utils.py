@@ -33,7 +33,7 @@ async def get_radiobrowse_base_url(): # from https://api.radio-browser.info/
         tasks_dns_lookup.append(task)
 
     resolved_ips = await asyncio.gather(*tasks_dns_lookup)
-
+    logger.info(f"Resolved IPs for radio: {resolved_ips}")
     random.shuffle(resolved_ips)
     if not resolved_ips:
         resolved_ips.append("all.api.radio-browser.info")

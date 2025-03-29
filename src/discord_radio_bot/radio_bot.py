@@ -1,6 +1,6 @@
 from discord.ext import commands
 from logconfig.logging_config import get_logger
-from radio_list import fetch_radio_by_name, fetch_radios_by_city
+from radio_list import RadioListManager
 import discord
 import asyncio
 
@@ -38,7 +38,7 @@ class NextPrevButton(discord.ui.Button):
             self.view.remove_item(self)
             await interaction.response.edit_message(view=self.view)
         select_buttons = self.view.children[:self.cog.RADIOS_PER_PAGE]
-        radios = await fetch_radios_by_city(self.view.current_page * self.cog.RADIOS_PER_PAGE,self.cog.RADIOS_PER_PAGE,self.query)
+        radios = await RadioListManager().fetch_radios_by_city(self.view.current_page * self.cog.RADIOS_PER_PAGE,self.cog.RADIOS_PER_PAGE,self.query)
         if len(radios) == 0:
             self.view.remove_item(self)
             await interaction.response.edit_message(view=self.view)
@@ -55,7 +55,7 @@ class Buttons(discord.ui.View):
         super().__init__(timeout=timeout)
         self.current_page = 0
 
-class RadioBot(commands.Cog):
+class RadioBotCommander(commands.Cog):
 
     RADIOS_PER_PAGE = 5
     VOLUME = 0.1
@@ -95,7 +95,7 @@ class RadioBot(commands.Cog):
         view = Buttons()
         message = await ctx.send("Fetching radios...")
         try:
-            radios = await fetch_radios_by_city(0,self.RADIOS_PER_PAGE,query)
+            radios = await RadioListManager().fetch_radios_by_city(0,self.RADIOS_PER_PAGE,query)
         except asyncio.TimeoutError as e:   
             logger.error(f"Timeout error: {e} when fetching radios by city {query}")
             await message.edit("Having network issues, try again later gogigagagagigo")
@@ -124,7 +124,7 @@ class RadioBot(commands.Cog):
             return
         message = await ctx.send("Fetching radios...")
         try:
-            radios = await fetch_radio_by_name(query)
+            radios = await RadioListManager().fetch_radio_by_name(query)
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout error: {e} when fetching radios by name {query}")
             await message.edit(content="Having network issues, try again later gogigagagagigo")
