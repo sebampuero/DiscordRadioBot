@@ -1,3 +1,4 @@
+from typing import Any, Coroutine
 from discord.ext import commands
 from logconfig.logging_config import get_logger
 from radio_list import RadioListManager
@@ -23,11 +24,12 @@ class SelectButton(discord.ui.Button):
             await interaction.response.edit_message(content="You're not in a voice channel, bitch", view=None)
 
 class NextPrevButton(discord.ui.Button):
-    def __init__(self, label: str, *, calling_cog: commands.Cog, query: str, is_next_btn: bool):
+    def __init__(self, label: str, *, calling_cog: commands.Cog, query: str, is_next_btn: bool, radios_caller: Coroutine[Any, Any, None]):
         super().__init__(label=label)
         self.cog = calling_cog
         self.query = query
         self.is_next_btn = is_next_btn
+        self.radios_caller = radios_caller
     
     async def callback(self, interaction):
         if self.is_next_btn:
@@ -38,7 +40,7 @@ class NextPrevButton(discord.ui.Button):
             self.view.remove_item(self)
             await interaction.response.edit_message(view=self.view)
         select_buttons = self.view.children[:self.cog.RADIOS_PER_PAGE]
-        radios = await RadioListManager().fetch_radios_by_city(self.view.current_page * self.cog.RADIOS_PER_PAGE,self.cog.RADIOS_PER_PAGE,self.query)
+        radios = await self.radios_caller(self.view.current_page * self.cog.RADIOS_PER_PAGE,self.cog.RADIOS_PER_PAGE,self.query)
         if len(radios) == 0:
             self.view.remove_item(self)
             await interaction.response.edit_message(view=self.view)
@@ -92,6 +94,8 @@ class RadioBotCommander(commands.Cog):
         '''
         !radio-city [city] => shows all radios in this city
         '''
+        if not query:
+            return
         view = Buttons()
         message = await ctx.send("Fetching radios...")
         try:
@@ -105,12 +109,13 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']}\n"
-        view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False))
-        view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True))
+        if len(radios) > self.RADIOS_PER_PAGE:
+            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radios_by_city))
+            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radios_by_city))
         if len(radios) > 0:
-            await message.edit(f"Radios for {query}:\n{options_txt}", view=view)
+            await message.edit(content=f"Radios for {query}:\n{options_txt}", view=view)
         else:
-            await message.edit(f"No radios for {query}")
+            await message.edit(content=f"No radios for {query}")
 
     @commands.command(name="radio")
     @commands.cooldown(1, 3, commands.BucketType.user)
@@ -118,13 +123,13 @@ class RadioBotCommander(commands.Cog):
         '''
         !radio [name] => shows radios with this name
         '''
-        view = Buttons()
         query = ' '.join(query)
         if not query:
             return
+        view = Buttons()
         message = await ctx.send("Fetching radios...")
         try:
-            radios = await RadioListManager().fetch_radio_by_name(query)
+            radios = await RadioListManager().fetch_radio_by_name(0,self.RADIOS_PER_PAGE,query)
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout error: {e} when fetching radios by name {query}")
             await message.edit(content="Having network issues, try again later gogigagagagigo")
@@ -134,10 +139,13 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']} - {radios[i]['state']},{radios[i]['country']}\n"
+        if len(radios) > self.RADIOS_PER_PAGE:
+            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radio_by_name))
+            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radio_by_name))
         if len(radios) > 0:
-            await message.edit(f"Radios found: '{query}':\n{options_txt}", view=view)
+            await message.edit(content=f"Radios found: '{query}':\n{options_txt}", view=view)
         else:
-            await message.edit(f"No radios with name '{query}'")
+            await message.edit(content=f"No radios with name '{query}'")
 
     @commands.command()
     async def stop(self, ctx: commands.Context):

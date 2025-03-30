@@ -22,8 +22,8 @@ class RadioListManager:
         self.selected_radio_hostname = radio_base_url_list[0]
         logger.info(f"Updated radio hostname to: {self.selected_radio_hostname}")
 
-    async def fetch_radio_by_name(self, query: str):
-        url = f"{self.selected_radio_hostname}/json/stations/byname/{query}?hidebroken=true"
+    async def fetch_radio_by_name(self, offset: int, limit: int, query: str):
+        url = f"{self.selected_radio_hostname}/json/stations/byname/{query}?offset={offset}&limit={limit}&hidebroken=true"
         logger.info(f"Fetching radio by name: {url}")
         headers = {'User-Agent': 'discord-bot-sebampuero'}
         async with aiohttp.ClientSession(headers=headers) as session:
