@@ -19,10 +19,14 @@ class SelectButton(discord.ui.Button):
     async def callback(self, interaction):
         guild = self.cog.bot.get_guild(interaction.guild_id)
         member = guild.get_member_named(interaction.user.name)
-        logger.info(f"Going to play: {self.radio['name']}")
         if member.voice:
             await interaction.response.edit_message(content=f"Playing: {self.radio['name']}", view=None)
-            await self.cog.play_radio(self.radio['url_resolved'], member.voice.channel)
+            if not self.radio['url_resolved']:
+                logger.info(f"Radio {self.radio['name']} has no url_resolved. Fallback to normal URL")
+                await self.cog.play_radio(self.radio['url'], member.voice.channel)
+            else:
+                logger.info(f"Trying to play radio {self.radio['name']} with url_resolved {self.radio['url_resolved']}")
+                await self.cog.play_radio(self.radio['url_resolved'], member.voice.channel)
         else:
             await interaction.response.edit_message(content="You're not in a voice channel, bitch", view=None)
 
