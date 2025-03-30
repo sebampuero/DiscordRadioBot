@@ -1,7 +1,7 @@
 import aiohttp
 import json
 from logconfig.logging_config import get_logger
-from utils.network_utils import get_radiobrowse_base_url
+from utils.network_utils import get_radiobrowse_base_hostname
 
 logger = get_logger("radio_discord_bot")
 
@@ -11,15 +11,18 @@ class RadioListManager:
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls, *args, **kwargs)
-            cls._instance.selected_radio_hostname = "https://all.api.radio-browser.info"
         return cls._instance
 
     async def update_radio_hostname(self):
         """
         Update the radio hostname to a new URL.
         """
-        radio_base_url_list = await get_radiobrowse_base_url()
-        self.selected_radio_hostname = radio_base_url_list[0]
+        radio_base_url_list = await get_radiobrowse_base_hostname()
+        if len(radio_base_url_list) > 0:
+            self.selected_radio_hostname = f"https://{radio_base_url_list[0]}"
+        else:
+            self.selected_radio_hostname = f"http://10.8.0.7:9090"
+            logger.warning("No radio browser servers available, using local server")
         logger.info(f"Updated radio hostname to: {self.selected_radio_hostname}")
 
     async def fetch_radio_by_name(self, offset: int, limit: int, query: str):

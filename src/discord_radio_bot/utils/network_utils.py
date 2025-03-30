@@ -6,7 +6,7 @@ from functools import partial
 
 logger = get_logger("radio_discord_bot")
 
-async def get_radiobrowse_base_url(): # from https://api.radio-browser.info/
+async def get_radiobrowse_base_hostname(): # from https://api.radio-browser.info/
     """
     Get a base url from all available radio browser servers.
 
@@ -35,11 +35,8 @@ async def get_radiobrowse_base_url(): # from https://api.radio-browser.info/
     resolved_ips = await asyncio.gather(*tasks_dns_lookup)
     logger.info(f"Resolved IPs for radio: {resolved_ips}")
     hosts = [ip[0] for ip in resolved_ips]
-    random.shuffle(resolved_ips)
-    if not hosts:
-        hosts.append("all.api.radio-browser.info")
-    # add "https://" in front to make it an url
-    return list(map(lambda x: "https://" + x, hosts))
+    random.shuffle(hosts)
+    return hosts
 
 
 def check_connection(ip: str) -> str | None:

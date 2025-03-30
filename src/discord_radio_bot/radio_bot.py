@@ -109,9 +109,8 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']}\n"
-        if len(radios) > self.RADIOS_PER_PAGE:
-            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radios_by_city))
-            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radios_by_city))
+        view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radios_by_city))
+        view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radios_by_city))
         if len(radios) > 0:
             await message.edit(content=f"Radios for {query}:\n{options_txt}", view=view)
         else:
@@ -139,9 +138,8 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']} - {radios[i]['state']},{radios[i]['country']}\n"
-        if len(radios) > self.RADIOS_PER_PAGE:
-            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radio_by_name))
-            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radio_by_name))
+        view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radio_by_name))
+        view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radio_by_name))
         if len(radios) > 0:
             await message.edit(content=f"Radios found: '{query}':\n{options_txt}", view=view)
         else:
