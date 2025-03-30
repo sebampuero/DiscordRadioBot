@@ -34,16 +34,17 @@ async def get_radiobrowse_base_url(): # from https://api.radio-browser.info/
 
     resolved_ips = await asyncio.gather(*tasks_dns_lookup)
     logger.info(f"Resolved IPs for radio: {resolved_ips}")
+    hosts = [ip[0] for ip in resolved_ips]
     random.shuffle(resolved_ips)
-    if not resolved_ips:
-        resolved_ips.append("all.api.radio-browser.info")
+    if not hosts:
+        hosts.append("all.api.radio-browser.info")
     # add "https://" in front to make it an url
-    return list(map(lambda x: "https://" + x, resolved_ips))
+    return list(map(lambda x: "https://" + x, hosts))
 
 
 def check_connection(ip: str) -> str | None:
     try:
-        socket.create_connection((ip, 443), timeout=0.5).close()
+        socket.create_connection((ip, 443), timeout=2).close()
         return ip
     except (socket.timeout, socket.error):
         logger.info(f"Host {ip} is not reachable")
