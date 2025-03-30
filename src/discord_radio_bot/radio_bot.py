@@ -7,6 +7,9 @@ import asyncio
 
 logger = get_logger("radio_discord_bot")
 
+
+RADIOS_PER_PAGE = 5
+VOLUME = 0.1
 class SelectButton(discord.ui.Button):
     def __init__(self, label: str, radio: dict, calling_cog: commands.Cog):
         super().__init__(label=label)
@@ -23,44 +26,70 @@ class SelectButton(discord.ui.Button):
         else:
             await interaction.response.edit_message(content="You're not in a voice channel, bitch", view=None)
 
-class NextPrevButton(discord.ui.Button):
-    def __init__(self, label: str, *, calling_cog: commands.Cog, query: str, is_next_btn: bool, radios_caller: Coroutine[Any, Any, None]):
+
+class NextButton(discord.ui.Button):
+    def __init__(self, label: str, *, calling_cog: commands.Cog, query: str, radios_caller: Coroutine[Any, Any, None]):
         super().__init__(label=label)
         self.cog = calling_cog
         self.query = query
-        self.is_next_btn = is_next_btn
         self.radios_caller = radios_caller
-    
+
     async def callback(self, interaction):
-        if self.is_next_btn:
-            self.view.current_page += 1
-        else:
-            self.view.current_page -= 1
-        if self.view.current_page == -1:
-            self.view.remove_item(self)
-            await interaction.response.edit_message(view=self.view)
-        select_buttons = self.view.children[:self.cog.RADIOS_PER_PAGE]
-        radios = await self.radios_caller(self.view.current_page * self.cog.RADIOS_PER_PAGE,self.cog.RADIOS_PER_PAGE,self.query)
-        if len(radios) == 0:
-            self.view.remove_item(self)
-            await interaction.response.edit_message(view=self.view)
+        self.view.update_current_page(self.view.current_page + 1)
+        select_buttons = self.view.children[:RADIOS_PER_PAGE]
+        radios = await self.radios_caller(self.view.current_page * RADIOS_PER_PAGE,RADIOS_PER_PAGE,self.query)
         options_txt = ""
         for i in range(0, len(radios)):
             select_buttons[i].radio = radios[i]
             select_buttons[i].calling_cog = self.cog
-            select_buttons[i].label = (i+1) + self.cog.RADIOS_PER_PAGE * self.view.current_page
-            options_txt += f"{(i+1) + self.cog.RADIOS_PER_PAGE * self.view.current_page}: {radios[i]['name']}\n"
+            select_buttons[i].label = (i+1) + RADIOS_PER_PAGE * self.view.current_page
+            options_txt += f"{(i+1) + RADIOS_PER_PAGE * self.view.current_page}: {radios[i]['name']}\n"
+        await interaction.response.edit_message(content=f"Radios for {self.query}:\n{options_txt}", view=self.view)
+
+
+
+class PrevButton(discord.ui.Button):
+    def __init__(self, label: str, *, calling_cog: commands.Cog, query: str, radios_caller: Coroutine[Any, Any, None]):
+        super().__init__(label=label)
+        self.cog = calling_cog
+        self.query = query
+        self.radios_caller = radios_caller
+    
+    async def callback(self, interaction):
+        self.view.update_current_page(self.view.current_page - 1)
+        select_buttons = self.view.children[:RADIOS_PER_PAGE]
+        radios = await self.radios_caller(self.view.current_page * RADIOS_PER_PAGE,RADIOS_PER_PAGE,self.query)
+        options_txt = ""
+        for i in range(0, len(radios)):
+            select_buttons[i].radio = radios[i]
+            select_buttons[i].calling_cog = self.cog
+            select_buttons[i].label = (i+1) + RADIOS_PER_PAGE * self.view.current_page
+            options_txt += f"{(i+1) + RADIOS_PER_PAGE * self.view.current_page}: {radios[i]['name']}\n"
         await interaction.response.edit_message(content=f"Radios for {self.query}:\n{options_txt}", view=self.view)
 
 class Buttons(discord.ui.View):
-    def __init__(self, *, timeout=180):
+    def __init__(self, *, timeout=180, radios_callback: Coroutine[Any, Any, None], query: str):
         super().__init__(timeout=timeout)
         self.current_page = 0
+        self.radios_api_callback = radios_callback
+        self.total_size_of_radios = 0
+        self.query = query
+
+    def update_current_page(self, page: int):
+        logger.debug(f"Updating current page to {page}")
+        self.current_page = page
+        if self.current_page == 0 and self.total_size_of_radios > RADIOS_PER_PAGE and not any(isinstance(item, NextButton) for item in self.children):
+            self.add_item(NextButton("Next", calling_cog=self, query=self.query, radios_caller=self.radios_api_callback))
+        if self.current_page > 0 and not any(isinstance(item, PrevButton) for item in self.children):
+            self.add_item(PrevButton("Previous", calling_cog=self, query=self.query, radios_caller=self.radios_api_callback))
+        if self.current_page == 0:
+            [self.remove_item(item)  for item in self.children if isinstance(item, PrevButton)]
+        if (self.current_page + 1) * RADIOS_PER_PAGE > self.total_size_of_radios:
+            [self.remove_item(item) for item in self.children if isinstance(item, NextButton)]
+        if (self.current_page + 1) * RADIOS_PER_PAGE < self.total_size_of_radios and not any(isinstance(item, NextButton) for item in self.children):
+            self.add_item(NextButton("Next", calling_cog=self, query=self.query, radios_caller=self.radios_api_callback))
 
 class RadioBotCommander(commands.Cog):
-
-    RADIOS_PER_PAGE = 5
-    VOLUME = 0.1
 
     def __init__(self, bot):
         self.bot = bot
@@ -78,7 +107,7 @@ class RadioBotCommander(commands.Cog):
             self.current_voice_client = voice_client
         self.current_voice_client.stop()
         audio_source = discord.FFmpegPCMAudio(radio_url)
-        volume_adjusted_source = discord.PCMVolumeTransformer(audio_source, volume=self.VOLUME)
+        volume_adjusted_source = discord.PCMVolumeTransformer(audio_source, volume=VOLUME)
         self.current_voice_client.play(volume_adjusted_source, after=None)
 
     @commands.Cog.listener()
@@ -96,12 +125,12 @@ class RadioBotCommander(commands.Cog):
         '''
         if not query:
             return
-        view = Buttons()
+        view = Buttons(radios_callback=RadioListManager().fetch_radios_by_city, query=query)
         message = await ctx.send("Fetching radios...")
         try:
-            radios = await RadioListManager().fetch_radios_by_city(0,self.RADIOS_PER_PAGE,query)
-            next_page = await RadioListManager().fetch_radios_by_city(self.RADIOS_PER_PAGE,1,query)
-            has_next = len(next_page) > 0
+            radios = await RadioListManager().fetch_radios_by_city(0,RADIOS_PER_PAGE,query)
+            all_radios = await RadioListManager().fetch_all_radios_by_city(query)
+            view.total_size_of_radios = len(all_radios)
         except asyncio.TimeoutError as e:   
             logger.error(f"Timeout error: {e} when fetching radios by city {query}")
             await message.edit("Having network issues, try again later gogigagagagigo")
@@ -112,10 +141,7 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']}\n"
-            
-        if has_next:
-            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radios_by_city))
-            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radios_by_city))
+        view.update_current_page(0)
         if len(radios) > 0:
             await message.edit(content=f"Radios for {query}:\n{options_txt}", view=view)
         else:
@@ -130,12 +156,12 @@ class RadioBotCommander(commands.Cog):
         query = ' '.join(query)
         if not query:
             return
-        view = Buttons()
+        view = Buttons(radios_callback=RadioListManager().fetch_radio_by_name, query=query)
         message = await ctx.send("Fetching radios...")
         try:
-            radios = await RadioListManager().fetch_radio_by_name(0,self.RADIOS_PER_PAGE,query)
-            next_page = await RadioListManager().fetch_radio_by_name(self.RADIOS_PER_PAGE,1,query)
-            has_next = len(next_page) > 0
+            radios = await RadioListManager().fetch_radio_by_name(0,RADIOS_PER_PAGE,query)
+            all_radios = await RadioListManager().fetch_all_radios_by_name(query)
+            view.total_size_of_radios = len(all_radios)
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout error: {e} when fetching radios by name {query}")
             await message.edit(content="Having network issues, try again later gogigagagagigo")
@@ -145,9 +171,7 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']} - {radios[i]['state']},{radios[i]['country']}\n"
-        if has_next:
-            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radio_by_name))
-            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radio_by_name))
+        view.update_current_page(0)
         if len(radios) > 0:
             await message.edit(content=f"Radios found: '{query}':\n{options_txt}", view=view)
         else:

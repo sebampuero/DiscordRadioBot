@@ -25,9 +25,27 @@ class RadioListManager:
             logger.warning("No radio browser servers available, using local server")
         logger.info(f"Updated radio hostname to: {self.selected_radio_hostname}")
 
+    async def fetch_all_radios_by_name(self, query: str):
+        url = f"{self.selected_radio_hostname}/json/stations/byname/{query}?hidebroken=true"
+        logger.info(f"Fetching all radios by name: {url}")
+        headers = {'User-Agent': 'discord-bot-sebampuero'}
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.get(url, timeout=4) as response:
+                data = await response.text()
+                return json.loads(data)
+    
+    async def fetch_all_radios_by_city(self, query: str):
+        url = f"{self.selected_radio_hostname}/json/stations/bystateexact/{query}?hidebroken=true"
+        logger.info(f"Fetching all radios by city: {url}")
+        headers = {'User-Agent': 'discord-bot-sebampuero'}
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.get(url, timeout=4) as response:
+                data = await response.text()
+                return json.loads(data)
+
     async def fetch_radio_by_name(self, offset: int, limit: int, query: str):
         url = f"{self.selected_radio_hostname}/json/stations/byname/{query}?offset={offset}&limit={limit}&hidebroken=true"
-        logger.info(f"Fetching radio by name: {url}")
+        logger.info(f"Fetching radio by name: {url} with offset {offset} and limit {limit}")
         headers = {'User-Agent': 'discord-bot-sebampuero'}
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url, timeout=4) as response:
@@ -36,7 +54,7 @@ class RadioListManager:
 
     async def fetch_radios_by_city(self, offset: int, limit: int, query: str):
         url = f"{self.selected_radio_hostname}/json/stations/bystateexact/{query}?offset={offset}&limit={limit}&hidebroken=true"
-        logger.info(f"Fetching radios by city: {url}")
+        logger.info(f"Fetching radios by city: {url} with offset {offset} and limit {limit}")
         headers = {'User-Agent': 'discord-bot-sebampuero'}
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url, timeout=4) as response:
