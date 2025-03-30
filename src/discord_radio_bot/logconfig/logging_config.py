@@ -3,9 +3,10 @@ import sys
 import logging
 import structlog
 
+
 def configure_logging() -> None:
     """Configure structlog based on environment variables.
-    
+
     Environment variables:
     - LOGGING_LEVEL: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
     - LOGGING_FORMAT: json, console (default: console)
@@ -17,15 +18,15 @@ def configure_logging() -> None:
     if log_level_name not in valid_levels:
         print(f"Invalid LOGGING_LEVEL: {log_level_name}. Using INFO instead.")
         log_level_name = "INFO"
-    
+
     log_level = getattr(logging, log_level_name)
-    
+
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
         level=log_level,
     )
-    
+
     processors = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
@@ -35,7 +36,7 @@ def configure_logging() -> None:
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
     ]
-    
+
     if log_format == "json":
         processors.append(structlog.processors.JSONRenderer())
     else:
@@ -46,6 +47,7 @@ def configure_logging() -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a configured logger with the given name."""

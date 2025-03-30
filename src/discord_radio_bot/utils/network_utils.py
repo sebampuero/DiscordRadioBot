@@ -6,18 +6,25 @@ from functools import partial
 
 logger = get_logger("radio_discord_bot")
 
-async def get_radiobrowse_base_hostname(): # from https://api.radio-browser.info/
+
+async def get_radiobrowse_base_hostname():  # from https://api.radio-browser.info/
     """
-    Get a base url from all available radio browser servers.
+    Get the base hostname for radio-browser.info
+    This function will return a list of IP addresses that are reachable
+    and have a DNS entry. The list is shuffled to avoid overloading
+    a single IP address.
 
-    Returns: 
-    list: a list of strings
-
+    Returns:
+        list: A list of IP addresses that are reachable and have a DNS entry.
     """
     loop = asyncio.get_event_loop()
     # get all hosts from DNS
-    ips = await loop.run_in_executor(None, 
-                                     lambda: socket.getaddrinfo('all.api.radio-browser.info', 80, 0, 0, socket.IPPROTO_TCP))
+    ips = await loop.run_in_executor(
+        None,
+        lambda: socket.getaddrinfo(
+            "all.api.radio-browser.info", 80, 0, 0, socket.IPPROTO_TCP
+        ),
+    )
     reachable_ips = []
     tasks = []
     for ip_tupple in ips:
