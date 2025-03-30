@@ -100,17 +100,22 @@ class RadioBotCommander(commands.Cog):
         message = await ctx.send("Fetching radios...")
         try:
             radios = await RadioListManager().fetch_radios_by_city(0,self.RADIOS_PER_PAGE,query)
+            next_page = await RadioListManager().fetch_radios_by_city(self.RADIOS_PER_PAGE,1,query)
+            has_next = len(next_page) > 0
         except asyncio.TimeoutError as e:   
             logger.error(f"Timeout error: {e} when fetching radios by city {query}")
             await message.edit("Having network issues, try again later gogigagagagigo")
             return
+        
         options_txt = ""
         for i in range(0,len(radios)):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']}\n"
-        view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radios_by_city))
-        view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radios_by_city))
+            
+        if has_next:
+            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radios_by_city))
+            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radios_by_city))
         if len(radios) > 0:
             await message.edit(content=f"Radios for {query}:\n{options_txt}", view=view)
         else:
@@ -129,6 +134,8 @@ class RadioBotCommander(commands.Cog):
         message = await ctx.send("Fetching radios...")
         try:
             radios = await RadioListManager().fetch_radio_by_name(0,self.RADIOS_PER_PAGE,query)
+            next_page = await RadioListManager().fetch_radio_by_name(self.RADIOS_PER_PAGE,1,query)
+            has_next = len(next_page) > 0
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout error: {e} when fetching radios by name {query}")
             await message.edit(content="Having network issues, try again later gogigagagagigo")
@@ -138,8 +145,9 @@ class RadioBotCommander(commands.Cog):
             btn = SelectButton(str(i+1), radios[i], self)
             view.add_item(btn)
             options_txt += f"{i+1}: {radios[i]['name']} - {radios[i]['state']},{radios[i]['country']}\n"
-        view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radio_by_name))
-        view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radio_by_name))
+        if has_next:
+            view.add_item(NextPrevButton("Previous", calling_cog=self, query=query, is_next_btn=False, radios_caller=RadioListManager().fetch_radio_by_name))
+            view.add_item(NextPrevButton("Next", calling_cog=self, query=query, is_next_btn=True, radios_caller=RadioListManager().fetch_radio_by_name))
         if len(radios) > 0:
             await message.edit(content=f"Radios found: '{query}':\n{options_txt}", view=view)
         else:
