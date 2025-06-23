@@ -12,7 +12,7 @@ structlog = "^25.2.0"
 python-dotenv = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.11.2"
+ruff = "^0.12.0"
 
 [build-system]
 requires = ["poetry-core"]
